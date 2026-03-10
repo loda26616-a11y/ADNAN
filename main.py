@@ -33,7 +33,7 @@ async def approve_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # welcome message
     await context.bot.send_message(
         chat_id=user.id,
-        text="✨ WELCOME TO JAMES PREMIUM BOT ✨\n\nAccess Granted 🚀"
+        text="✨ WELCOME TO ADNAN PREMIUM BOT ✨\n\nAccess Granted 🚀"
     )
 
     # send APK

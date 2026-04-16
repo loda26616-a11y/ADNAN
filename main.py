@@ -74,7 +74,7 @@ async def leave_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"👋 Hello {user.first_name},\n\n"
                     "Aapne humara channel leave kar diya hai. 😟\n"
                     "Agar koi problem thi ya aap help chahte ho, toh humse contact karein: @ADNAN_HACK_MANAGER\n\n"
-                    "Wapas join karne ke liye link ka use karein! 🔥"
+                    "Wapas join karne ke liye link ka use karein! https://t.me/+25K-yX2HWtBiZTk1 🔥"
                 )
             )
             print(f"Leave message sent to: {user.id}")

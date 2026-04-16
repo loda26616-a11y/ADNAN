@@ -1,5 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, ChatJoinRequestHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, ChatJoinRequestHandler, ChatMemberHandler
+from telegram.constants import ChatMemberStatus
 from telegram.error import NetworkError, TimedOut, RetryAfter
 import json
 import os
@@ -16,9 +17,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 APK_URL = os.environ.get("APK_URL")
 
 USERS_FILE = "users.json"
-
 APK_CACHE = None
-
 
 def load_users():
     try:
@@ -29,14 +28,12 @@ def load_users():
         pass
     return []
 
-
 def save_users(users):
     try:
         with open(USERS_FILE, "w") as f:
             json.dump(users, f, indent=2)
     except IOError as e:
         print(f"Error saving users: {e}")
-
 
 def add_user(user, users):
     if not any(u["id"] == user.id for u in users):
@@ -48,7 +45,6 @@ def add_user(user, users):
         })
         save_users(users)
     return users
-
 
 def fetch_apk_at_startup():
     global APK_CACHE
@@ -65,10 +61,28 @@ def fetch_apk_at_startup():
         print(f"Failed to download APK: {e}")
         APK_CACHE = None
 
+# --- New Leave Handler ---
+async def leave_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    result = update.chat_member
+    # Check if the user left or was removed
+    if result.new_chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED]:
+        user = result.from_user
+        try:
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=(
+                    f"👋 Hello {user.first_name},\n\n"
+                    "Aapne humara channel leave kar diya hai. 😟\n"
+                    "Agar koi problem thi ya aap help chahte ho, toh humse contact karein: @ADNAN_HACK_MANAGER\n\n"
+                    "Wapas join karne ke liye link ka use karein! 🔥"
+                )
+            )
+            print(f"Leave message sent to: {user.id}")
+        except Exception as e:
+            print(f"Could not send leave message to {user.id}: {e}")
 
 async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.chat_join_request.from_user
-
     for attempt in range(3):
         try:
             users = load_users()
@@ -97,51 +111,45 @@ async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print(f"APK sent to: {user.id} (@{user.username})")
             else:
                 print(f"APK cache empty, not sent to: {user.id}")
-
             break
-
         except RetryAfter as e:
-            print(f"Rate limited, waiting {e.retry_after}s...")
             await asyncio.sleep(e.retry_after)
         except (NetworkError, TimedOut) as e:
-            print(f"Network error attempt {attempt + 1}/3: {e}")
-            if attempt < 2:
-                await asyncio.sleep(5)
+            if attempt < 2: await asyncio.sleep(5)
         except Exception as e:
             print(f"Error for {user.id}: {e}")
             break
 
-
 def main():
     if not BOT_TOKEN:
         print("ERROR: BOT_TOKEN not set")
-        import time
-        time.sleep(30)
         return
 
     print(f"[{datetime.now()}] Starting bot...")
     fetch_apk_at_startup()
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    # Handlers
     app.add_handler(ChatJoinRequestHandler(join_request))
+    app.add_handler(ChatMemberHandler(leave_handler, ChatMemberHandler.CHAT_MEMBER))
 
-    print(f"[{datetime.now()}] Bot running (polling)...")
+    print(f"[{datetime.now()}] Bot running...")
 
+    # Added "chat_member" to allowed_updates
     app.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=["chat_join_request"]
+        drop_pending_updates=True, 
+        allowed_updates=["chat_join_request", "chat_member"]
     )
-
 
 if __name__ == "__main__":
     while True:
         try:
             main()
         except KeyboardInterrupt:
-            print("Bot stopped.")
             break
         except Exception as e:
-            print(f"[{datetime.now()}] Crashed: {e}")
-            print("Restarting in 10s...")
+            print(f"Crashed: {e}")
             import time
             time.sleep(10)
+            
